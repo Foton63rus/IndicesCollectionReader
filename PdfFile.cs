@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using IndicesCollectionReader.Entity;
+using System.Text;
+using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -9,19 +11,20 @@ namespace IndicesCollectionReader
     {
         PdfDocument pdf;
         PdfContent pdfContent;
-        PdfSource PdfSource;
-        
+        Dictionary<string, int> sourcePages = new Dictionary<string, int>(); //Содержание: Текст и номер страницы
+        Indexes indexes = new Indexes();   // Объектная модель файла
+
         public string Open(string path)
         {
             ClearPdfData();
             if (path == "1")
             {
-                path = @"C:\Users\4ton1\OneDrive\Рабочий стол\Сборник индексов 206_.pdf";
+                path = @"C:\Users\4ton1\OneDrive\Рабочий стол\Сборник индексов 212_.pdf";
             }
             try
             {
                 pdf = PdfDocument.Open(path);
-                Console.WriteLine(pdf.GetPage(120).Text);
+                Console.WriteLine(pdf.GetPage(2).Text);
                 return ExtractPdfData(pdf);
             }
             catch (Exception ex)
@@ -31,14 +34,15 @@ namespace IndicesCollectionReader
         }
         private string ExtractPdfData(PdfDocument pdf)
         {
-            StringBuilder sb = new StringBuilder();
-
             if (pdfContent.pageContent == 0) findContentPage();
             if (pdfContent.pageSource  == 0) findSourcePage();
 
-            extractContentData();
+            extractContentData();   //Извлечение данных из содержания файла
+            extractSourceData();    //Извлечение данных из тела файла
 
-            return "";
+            string s = JsonConvert.SerializeObject(indexes, Formatting.Indented);
+
+            return s;
         } 
         
         private void findContentPage()
@@ -101,6 +105,57 @@ namespace IndicesCollectionReader
                 }
             }
         }
+        private void extractSourceData()
+        {
+            Chapter currentChapter = null;
+            Compilation currentCompilation = null;
+            Section currentSection = null;
+
+            foreach (var context in sourcePages)
+            {
+                if (context.Key.StartsWith("Глава"))
+                {
+                    currentChapter = new Chapter();
+                    currentCompilation = null;
+                    currentSection = null;
+                    Regex regex = new Regex(RegexTemplates.ChapterNumber);
+                    Match match = regex.Match(context.Key);
+                    if (match.Success)
+                    {
+                        int.TryParse( match.Groups[1].Value, out currentChapter.Number);
+                    }
+                    currentChapter.Page = context.Value;
+                    indexes.chapters.Add(currentChapter);
+                }
+                else if (context.Key.StartsWith("Раздел"))
+                {
+
+                    if (currentChapter == null)
+                    {
+                        throw new NullReferenceException("Не определена глава к котороой относится раздел");
+                    }
+                    else
+                    {
+                        if (currentChapter.compilations.Count == 0)
+                        {
+                            currentCompilation = new Compilation();
+                            currentCompilation.Page = currentChapter.Page;
+                            currentCompilation.Number = 0;
+                            currentChapter.compilations.Add(currentCompilation);
+                        }
+                        currentSection = new Section();
+                        Regex regex = new Regex(RegexTemplates.SectionNumber);
+                        Match match = regex.Match(context.Key);
+                        if (match.Success)
+                        {
+                            int.TryParse(match.Groups[1].Value, out currentSection.Number);
+                        }
+                        currentSection.Page = context.Value;
+                        currentCompilation.Sections.Add(currentSection);
+                    }
+                }
+            }
+        }
         private void extractLinesFromContent( string context)
         {
             Regex regexLine = new Regex(RegexTemplates.ContentLines);
@@ -110,6 +165,12 @@ namespace IndicesCollectionReader
                 int current = 0;
                 foreach (Match match in matches)
                 {
+                    int page;
+                    int.TryParse(match.Groups[1].Value, out page);
+                    if (!sourcePages.ContainsKey(context.Substring(current, match.Index - current)))
+                    {
+                        sourcePages.Add($"{context.Substring(current, match.Index - current)}", page);
+                    }
                     Console.WriteLine($"{context.Substring(current, match.Index - current)} === {match.Groups[1].Value}");
                     current = match.Index + match.Length;
                 }
@@ -117,9 +178,14 @@ namespace IndicesCollectionReader
         }
         private void ClearPdfData()
         {
+            
+            indexes = new Indexes();
+            if (sourcePages != null) { 
+                sourcePages.Clear(); 
+                sourcePages = new Dictionary<string, int>(); 
+            }
             if (pdf != null) pdf.Dispose();
             pdfContent = new PdfContent();
-            PdfSource = null;
         }
     }
 }
