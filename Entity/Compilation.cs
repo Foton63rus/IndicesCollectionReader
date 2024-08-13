@@ -2,11 +2,8 @@
 {
     public class Compilation //Сборник
     {
-
-        public int Number { get; set; }
+        public int Number;
         public int Page;
-        public List<Section> Sections = new List<Section>();
-
-
+        public List<IRecord> records = new List<IRecord>();
     }
 }

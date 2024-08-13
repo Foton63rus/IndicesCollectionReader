@@ -1,9 +1,7 @@
 ﻿using IndicesCollectionReader.Entity;
-using System.Text;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
 
 namespace IndicesCollectionReader
 {
@@ -11,8 +9,14 @@ namespace IndicesCollectionReader
     {
         PdfDocument pdf;
         PdfContent pdfContent;
-        Dictionary<string, int> sourcePages = new Dictionary<string, int>(); //Содержание: Текст и номер страницы
+        Dictionary<string, int> sourceContentPages = new Dictionary<string, int>(); //Содержание: Текст и номер страницы
         Indexes indexes = new Indexes();   // Объектная модель файла
+
+        (int, int) chapterCashData = (0, 0);
+        ChapterWithCompilations currentChapterWithCompilations = null;
+        ChapterWithSections currentChapterWithSections = null;
+        Compilation currentCompilation = null;
+        Section currentSection = null;
 
         public string Open(string path)
         {
@@ -38,7 +42,7 @@ namespace IndicesCollectionReader
             if (pdfContent.pageSource  == 0) findSourcePage();
 
             extractContentData();   //Извлечение данных из содержания файла
-            extractSourceData();    //Извлечение данных из тела файла
+            buildContentModel();    //Создание объектной модели из содержания файла
 
             string s = JsonConvert.SerializeObject(indexes, Formatting.Indented);
 
@@ -105,56 +109,96 @@ namespace IndicesCollectionReader
                 }
             }
         }
-        private void extractSourceData()
+        private void buildContentModel()
         {
-            Chapter currentChapter = null;
-            Compilation currentCompilation = null;
-            Section currentSection = null;
+            currentChapterWithCompilations = null;
+            currentChapterWithSections = null;
+            currentCompilation = null;
+            currentSection = null;
 
-            foreach (var context in sourcePages)
+            foreach (var context in sourceContentPages)
             {
+
                 if (context.Key.StartsWith("Глава"))
                 {
-                    currentChapter = new Chapter();
-                    currentCompilation = null;
-                    currentSection = null;
-                    Regex regex = new Regex(RegexTemplates.ChapterNumber);
-                    Match match = regex.Match(context.Key);
-                    if (match.Success)
-                    {
-                        int.TryParse( match.Groups[1].Value, out currentChapter.Number);
-                    }
-                    currentChapter.Page = context.Value;
-                    indexes.chapters.Add(currentChapter);
+                    buildChapter(context);
                 }
                 else if (context.Key.StartsWith("Раздел"))
                 {
+                    buildSection(context);
+                }
+                else if (context.Key.StartsWith("Сборник"))
+                {
+                    buildCompilation(context);
+                }
+                else
+                {
 
-                    if (currentChapter == null)
-                    {
-                        throw new NullReferenceException("Не определена глава к котороой относится раздел");
-                    }
-                    else
-                    {
-                        if (currentChapter.compilations.Count == 0)
-                        {
-                            currentCompilation = new Compilation();
-                            currentCompilation.Page = currentChapter.Page;
-                            currentCompilation.Number = 0;
-                            currentChapter.compilations.Add(currentCompilation);
-                        }
-                        currentSection = new Section();
-                        Regex regex = new Regex(RegexTemplates.SectionNumber);
-                        Match match = regex.Match(context.Key);
-                        if (match.Success)
-                        {
-                            int.TryParse(match.Groups[1].Value, out currentSection.Number);
-                        }
-                        currentSection.Page = context.Value;
-                        currentCompilation.Sections.Add(currentSection);
-                    }
                 }
             }
+        }
+        private void buildChapter(KeyValuePair<string, int> context)
+        {
+            int number = 0;
+            Regex regex = new Regex(RegexTemplates.ChapterNumber);
+            Match match = regex.Match(context.Key);
+            if (match.Success)
+            {
+                int.TryParse(match.Groups[1].Value, out number);
+            }
+            int page = context.Value;
+            chapterCashData = (number, page);
+
+            currentChapterWithCompilations = null;
+            currentChapterWithSections = null;
+            currentCompilation = null;
+            currentSection = null;
+        }
+        private void buildSection(KeyValuePair<string, int> context)
+        {
+            if (chapterCashData != (0, 0))
+            {
+                currentChapterWithCompilations = null;
+                currentChapterWithSections = new ChapterWithSections();
+                currentChapterWithSections.Number = chapterCashData.Item1;
+                currentChapterWithSections.Page = chapterCashData.Item2;
+                indexes.chapters.Add(currentChapterWithSections);
+                chapterCashData = (0, 0);
+            }
+            currentSection = new Section();
+            Regex regex = new Regex(RegexTemplates.SectionNumber);
+            Match match = regex.Match(context.Key);
+            if (match.Success)
+            {
+                int.TryParse(match.Groups[1].Value, out currentSection.Number);
+            }
+            currentSection.Page = context.Value;
+            currentChapterWithSections.Sections.Add(currentSection);
+        }
+        private void buildCompilation(KeyValuePair<string, int> context)
+        {
+            if (chapterCashData != (0, 0))
+            {
+                currentChapterWithSections = null;
+                currentChapterWithCompilations = new ChapterWithCompilations();
+                currentChapterWithCompilations.Number = chapterCashData.Item1;
+                currentChapterWithCompilations.Page = chapterCashData.Item2;
+                indexes.chapters.Add(currentChapterWithCompilations);
+                chapterCashData = (0, 0);
+            }
+            currentCompilation = new Compilation();
+            Regex regex = new Regex(RegexTemplates.CompilationNumber);
+            Match match = regex.Match(context.Key);
+            if (match.Success)
+            {
+                int.TryParse(match.Groups[1].Value, out currentCompilation.Number);
+            }
+            currentCompilation.Page = context.Value;
+            currentChapterWithCompilations.compilations.Add(currentCompilation);
+        }
+        private void buildTable(KeyValuePair<string, int> context)
+        {
+
         }
         private void extractLinesFromContent( string context)
         {
@@ -167,9 +211,9 @@ namespace IndicesCollectionReader
                 {
                     int page;
                     int.TryParse(match.Groups[1].Value, out page);
-                    if (!sourcePages.ContainsKey(context.Substring(current, match.Index - current)))
+                    if (!sourceContentPages.ContainsKey(context.Substring(current, match.Index - current)))
                     {
-                        sourcePages.Add($"{context.Substring(current, match.Index - current)}", page);
+                        sourceContentPages.Add($"{context.Substring(current, match.Index - current)}", page);
                     }
                     Console.WriteLine($"{context.Substring(current, match.Index - current)} === {match.Groups[1].Value}");
                     current = match.Index + match.Length;
@@ -180,9 +224,9 @@ namespace IndicesCollectionReader
         {
             
             indexes = new Indexes();
-            if (sourcePages != null) { 
-                sourcePages.Clear(); 
-                sourcePages = new Dictionary<string, int>(); 
+            if (sourceContentPages != null) { 
+                sourceContentPages.Clear(); 
+                sourceContentPages = new Dictionary<string, int>(); 
             }
             if (pdf != null) pdf.Dispose();
             pdfContent = new PdfContent();
