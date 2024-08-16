@@ -3,8 +3,21 @@ using UglyToad.PdfPig;
 
 namespace IndicesCollectionReader.Entity
 {
-    public class ContentExtractor
+    public class ContentExtractor : IDisposable
     {
+        /// <summary>
+        /// 
+        /// Объект извлекает данные только содержания !!!
+        /// 
+        /// pageContent - страница с началом содержания
+        /// pageSource - страница с началом данных
+        /// 
+        /// contentData - строки содержания в формате
+        /// <НОМЕР СТРОКИ>/<ИНДЕКС НАЧАЛА СТРОКИ НА СТРАНИЦЕ> <ИМЯ>
+        /// $"{Page}/{Index} {Name}"
+        /// 
+        /// </summary>
+        
         public int pageContent = 0;
         public int pageSource = 0;
 
@@ -25,12 +38,7 @@ namespace IndicesCollectionReader.Entity
             findSourcePage();   //Находим страницу с началом данных
 
             extractContentData();   //Извлечение данных из содержания файла
-            findHeaderStrokeIndexes();
-
-            /*foreach (ContentData data in contentData)
-            {
-                Console.WriteLine(data);
-            }*/
+            findHeaderStrokeIndexes();  //Нахождение индексов начала имени на странице
         }
 
         private void findContentPage()
@@ -132,6 +140,11 @@ namespace IndicesCollectionReader.Entity
 
                 Console.WriteLine(data);
             }
+        }
+
+        public void Dispose()
+        {
+            this.pdf = null;
         }
     }
 }

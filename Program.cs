@@ -16,7 +16,11 @@ while (true)
     {
         default:
             pdfFile = new PdfFile();
-            Console.WriteLine(pdfFile.Open(input));
+            string JSON = pdfFile.Open(input);
+            Console.Clear();
+            Console.WriteLine("writing json");
+            File.WriteAllText($"{input}.json", JSON);
+            Console.WriteLine("Done");
             break;
     }
 }

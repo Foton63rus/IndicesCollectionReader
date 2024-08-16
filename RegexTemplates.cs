@@ -12,6 +12,7 @@
         public static string CompilationNumber = @"^Сборник\s+(\d+)\s?.\s+";
         public static string TableNumberHeader = @"^\s?(\d+).\s+(.+)";
 
-        public static string TableHeaderNumCodeKoef = @"^№\s+п/п\s+Шифр\s+Коэффи-\s+циент\s+";
+        public static string TableHeaderNumCodeKoef = @"№\s+п\/п\s+Шифр\s+Коэффи-\s+циент\s+";
+        public static string TableDataNumCodeKoef = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?(\d+,\d+)\s*";
     }
 }
