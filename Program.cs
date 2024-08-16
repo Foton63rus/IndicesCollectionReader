@@ -2,11 +2,11 @@
 
 PdfFile pdfFile;
 
-while(true)
+while (true)
 {
     string input = Console.ReadLine();
 
-    if ( string.IsNullOrEmpty(input) )
+    if (string.IsNullOrEmpty(input))
     {
         Console.WriteLine("Укажи путь к файлу");
         continue;

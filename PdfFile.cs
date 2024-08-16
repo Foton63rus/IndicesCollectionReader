@@ -7,9 +7,11 @@ namespace IndicesCollectionReader
 {
     public class PdfFile
     {
+        //пока что не ведется импорт нормативных таблиц
         PdfDocument pdf;
-        PdfContent pdfContent;
-        Dictionary<string, int> sourceContentPages = new Dictionary<string, int>(); //Содержание: Текст и номер страницы
+        ContentExtractor content;
+
+        //Dictionary<string, int> sourceContentPages = new Dictionary<string, int>(); //Содержание: Текст и номер страницы
         Indexes indexes = new Indexes();   // Объектная модель файла
 
         (int, int) chapterCashData = (0, 0);
@@ -17,18 +19,15 @@ namespace IndicesCollectionReader
         ChapterWithSections currentChapterWithSections = null;
         Compilation currentCompilation = null;
         Section currentSection = null;
+        Table currentTable = null;
 
         public string Open(string path)
         {
             ClearPdfData();
-            if (path == "1")
-            {
-                path = @"C:\Users\4ton1\OneDrive\Рабочий стол\Сборник индексов 212_.pdf";
-            }
             try
             {
                 pdf = PdfDocument.Open(path);
-                Console.WriteLine(pdf.GetPage(2).Text);
+                //Console.WriteLine(pdf.GetPage(12).Text);
                 return ExtractPdfData(pdf);
             }
             catch (Exception ex)
@@ -38,198 +37,157 @@ namespace IndicesCollectionReader
         }
         private string ExtractPdfData(PdfDocument pdf)
         {
-            if (pdfContent.pageContent == 0) findContentPage();
-            if (pdfContent.pageSource  == 0) findSourcePage();
 
-            extractContentData();   //Извлечение данных из содержания файла
+            content = new ContentExtractor(pdf);   //Извлечение данных из содержания файла
             buildContentModel();    //Создание объектной модели из содержания файла
 
             string s = JsonConvert.SerializeObject(indexes, Formatting.Indented);
 
             return s;
-        } 
-        
-        private void findContentPage()
-        {
-            for (int i = 1; i <= pdf.NumberOfPages; i++)
-            {
-                Regex regexFindContentPage = new Regex( RegexTemplates.Content );
-                Match match = regexFindContentPage.Match(pdf.GetPage(i).Text);
-                if (match.Success)
-                {
-                    pdfContent.pageContent = i;
-                    break;
-                }
-            }
-            if (pdfContent.pageContent > 0)
-            {
-                Console.WriteLine($"Содержание находится на {pdfContent.pageContent} странице");
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException("Не возможно определить страницу с содержанием");
-            }
         }
-        private void findSourcePage()
-        {
-            string contentText = pdf.GetPage(pdfContent.pageContent).Text;
-            Regex regexFindSourcePage = new Regex( RegexTemplates.SourcePage );
-            Match match = regexFindSourcePage.Match(contentText);
-            if (match.Success)
-            {
-                int.TryParse(match.Groups[3].Value, out pdfContent.pageSource);
-            }
-            if(pdfContent.pageSource > 0)
-            {
-                Console.WriteLine($"Общая часть находится на {pdfContent.pageSource} странице");
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException("Не возможно определить страницу следующую за содержанием");
-            }
-        }
-        private void extractContentData()
-        {
-            for (int i = pdfContent.pageContent; i <= pdfContent.pageSource - 1; i++) //pdfContent.pageSource
-            {
-                Regex regexStartContent = new Regex(RegexTemplates.Content);
-                Match match = regexStartContent.Match(pdf.GetPage(i).Text);
-                if (match.Success && match.Index == 0)
-                {
-                    extractLinesFromContent(pdf.GetPage(i).Text.Substring(match.Length));
-                }
-                else
-                {
-                    Regex regexDigits = new Regex(RegexTemplates.Digits);
-                    match = regexDigits.Match(pdf.GetPage(i).Text);
-                    if (match.Success && match.Index == 0)
-                    {
-                        extractLinesFromContent(pdf.GetPage(i).Text.Substring(match.Length));
-                    }
-                }
-            }
-        }
+
         private void buildContentModel()
         {
             currentChapterWithCompilations = null;
             currentChapterWithSections = null;
             currentCompilation = null;
             currentSection = null;
+            currentTable = null;
 
-            foreach (var context in sourceContentPages)
+            foreach (var context in content.contentData)
             {
-
-                if (context.Key.StartsWith("Глава"))
+                if (context.Name.StartsWith("ОБЩАЯ ЧАСТЬ"))
+                {
+                    //Можно предусмотреть выгрузку данных из общей части
+                }
+                else if (context.Name.StartsWith("Глава"))
                 {
                     buildChapter(context);
                 }
-                else if (context.Key.StartsWith("Раздел"))
+                else if (context.Name.StartsWith("Раздел"))
                 {
                     buildSection(context);
                 }
-                else if (context.Key.StartsWith("Сборник"))
+                else if (context.Name.StartsWith("Сборник"))
                 {
                     buildCompilation(context);
                 }
+                else if (context.Name.StartsWith("Нормативная"))
+                {
+                    /*Можно добавить выгрузку нормативные таблицы по применению норм накладных расходов, сметной прибыли и
+                    коэффициентов, учитывающих дополнительные затраты, связанные с производством работ в
+                    зимнее время*/
+                }
                 else
                 {
-
+                    //остается только таблицы в разделах, начинающиеся с номеров
+                    buildTable(context);
                 }
             }
         }
-        private void buildChapter(KeyValuePair<string, int> context)
+        private void buildChapter(ContentData context)
         {
             int number = 0;
             Regex regex = new Regex(RegexTemplates.ChapterNumber);
-            Match match = regex.Match(context.Key);
+            Match match = regex.Match(context.Name);
             if (match.Success)
             {
                 int.TryParse(match.Groups[1].Value, out number);
             }
-            int page = context.Value;
+            int page = context.Page;
             chapterCashData = (number, page);
 
             currentChapterWithCompilations = null;
             currentChapterWithSections = null;
             currentCompilation = null;
             currentSection = null;
+            currentTable = null;
         }
-        private void buildSection(KeyValuePair<string, int> context)
+        private void buildSection(ContentData context)
         {
             if (chapterCashData != (0, 0))
             {
                 currentChapterWithCompilations = null;
-                currentChapterWithSections = new ChapterWithSections();
-                currentChapterWithSections.Number = chapterCashData.Item1;
-                currentChapterWithSections.Page = chapterCashData.Item2;
-                indexes.chapters.Add(currentChapterWithSections);
+                currentChapterWithSections = new ChapterWithSections(chapterCashData.Item1, chapterCashData.Item2);
+                indexes.Chapters.Add(currentChapterWithSections);
                 chapterCashData = (0, 0);
             }
             currentSection = new Section();
+            currentTable = null;
             Regex regex = new Regex(RegexTemplates.SectionNumber);
-            Match match = regex.Match(context.Key);
+            Match match = regex.Match(context.Name);
             if (match.Success)
             {
                 int.TryParse(match.Groups[1].Value, out currentSection.Number);
             }
-            currentSection.Page = context.Value;
+            currentSection.Page = context.Page;
             currentChapterWithSections.Sections.Add(currentSection);
         }
-        private void buildCompilation(KeyValuePair<string, int> context)
+        private void buildCompilation(ContentData context)
         {
             if (chapterCashData != (0, 0))
             {
                 currentChapterWithSections = null;
-                currentChapterWithCompilations = new ChapterWithCompilations();
-                currentChapterWithCompilations.Number = chapterCashData.Item1;
-                currentChapterWithCompilations.Page = chapterCashData.Item2;
-                indexes.chapters.Add(currentChapterWithCompilations);
+                currentChapterWithCompilations = new ChapterWithCompilations(chapterCashData.Item1, chapterCashData.Item2);
+                indexes.Chapters.Add(currentChapterWithCompilations);
                 chapterCashData = (0, 0);
             }
             currentCompilation = new Compilation();
             Regex regex = new Regex(RegexTemplates.CompilationNumber);
-            Match match = regex.Match(context.Key);
+            Match match = regex.Match(context.Name);
             if (match.Success)
             {
                 int.TryParse(match.Groups[1].Value, out currentCompilation.Number);
             }
-            currentCompilation.Page = context.Value;
-            currentChapterWithCompilations.compilations.Add(currentCompilation);
+            currentCompilation.Page = context.Page;
+            currentChapterWithCompilations.Compilations.Add(currentCompilation);
         }
-        private void buildTable(KeyValuePair<string, int> context)
+        private void buildTable(ContentData context)
         {
-
-        }
-        private void extractLinesFromContent( string context)
-        {
-            Regex regexLine = new Regex(RegexTemplates.ContentLines);
-            MatchCollection matches = regexLine.Matches(context);
-            if (matches.Count > 0)
+            Regex regex = new Regex(RegexTemplates.TableNumberHeader);
+            Match match = regex.Match(context.Name);
+            currentTable = new Table();
+            if (match.Success)
             {
-                int current = 0;
-                foreach (Match match in matches)
+                int.TryParse(match.Groups[1].Value, out currentTable.Number);
+            }
+            currentTable.Name = context.Name.Trim();
+            currentTable.Page = context.Page;
+            currentSection.Tables.Add(currentTable);
+
+            try
+            {
+                //extractRecords(currentTable.Page, currentTable.Name);    //Извлечение данных таблиц и сборников
+            }
+            catch (Exception ex) { Console.WriteLine(ex.ToString()); }
+        }
+        private void extractRecords(int page, string tableHeader)
+        {
+            int currentPage = currentTable.Page;
+            Regex regex = new Regex(tableHeader + @"\s+");
+            Match match = regex.Match(pdf.GetPage(currentPage).Text);
+            if (match.Success)
+            {
+                string text = pdf.GetPage(currentPage).Text;
+                string tableDirty = text.Substring(match.Index + match.Length);
+                regex = new Regex(RegexTemplates.TableHeaderNumCodeKoef);
+                match = regex.Match(tableDirty);
+                if (match.Success)
                 {
-                    int page;
-                    int.TryParse(match.Groups[1].Value, out page);
-                    if (!sourceContentPages.ContainsKey(context.Substring(current, match.Index - current)))
-                    {
-                        sourceContentPages.Add($"{context.Substring(current, match.Index - current)}", page);
-                    }
-                    Console.WriteLine($"{context.Substring(current, match.Index - current)} === {match.Groups[1].Value}");
-                    current = match.Index + match.Length;
+                    tableDirty = text.Substring(match.Index + match.Length);
                 }
+                Console.WriteLine(tableDirty);
+            }
+            for (int i = currentTable.Page; i <= pdf.NumberOfPages; i++)
+            {
+
             }
         }
+        
         private void ClearPdfData()
         {
-            
             indexes = new Indexes();
-            if (sourceContentPages != null) { 
-                sourceContentPages.Clear(); 
-                sourceContentPages = new Dictionary<string, int>(); 
-            }
             if (pdf != null) pdf.Dispose();
-            pdfContent = new PdfContent();
         }
     }
 }

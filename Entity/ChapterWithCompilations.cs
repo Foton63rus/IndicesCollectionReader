@@ -4,6 +4,11 @@
     {
         public int Number;
         public int Page;
-        public List<Compilation> compilations = new List<Compilation>();
+        public List<Compilation> Compilations = new List<Compilation>();
+        public ChapterWithCompilations(int number, int page)
+        {
+            Number = number;
+            Page = page;
+        }
     }
 }

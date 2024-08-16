@@ -3,6 +3,6 @@
     [Serializable]
     public class Indexes // объектная модель индексов
     {
-        public List<IChapter> chapters = new List<IChapter>();
+        public List<IChapter> Chapters = new List<IChapter>();
     }
 }
