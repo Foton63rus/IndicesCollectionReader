@@ -20,6 +20,7 @@ namespace IndicesCollectionReader.Entity
 
         public ContentModelBuilder(PdfDocument pdfDocument, ContentExtractor contentExtractor)
         {
+            Console.Clear();
             this.pdf = pdfDocument;
             this.content = contentExtractor;
             buildContentModel();
@@ -51,7 +52,7 @@ namespace IndicesCollectionReader.Entity
                 }
                 else if (context.Name.StartsWith("Сборник"))
                 {
-                    buildCompilation(context);
+                    buildCompilation(context, i);
                 }
                 else if (context.Name.StartsWith("Нормативная"))
                 {
@@ -104,7 +105,7 @@ namespace IndicesCollectionReader.Entity
             currentSection.Page = context.Page;
             currentChapterWithSections.Sections.Add(currentSection);
         }
-        private void buildCompilation(ContentData context)
+        private void buildCompilation(ContentData context, int i)
         {
             if (chapterCashData != (0, 0))
             {
@@ -114,6 +115,7 @@ namespace IndicesCollectionReader.Entity
                 chapterCashData = (0, 0);
             }
             currentCompilation = new Compilation();
+            currentCompilation.Name = context.Name;
             Regex regex = new Regex(RegexTemplates.CompilationNumber);
             Match match = regex.Match(context.Name);
             if (match.Success)
@@ -122,6 +124,7 @@ namespace IndicesCollectionReader.Entity
             }
             currentCompilation.Page = context.Page;
             currentChapterWithCompilations.Compilations.Add(currentCompilation);
+            buildTable(i);
         }
         private void buildTable(int indexData)
         {
@@ -131,6 +134,7 @@ namespace IndicesCollectionReader.Entity
             int toIndex = 0;
             int lastPage = 0;
             int lastIndex = 0;
+            string tableHeader = "";
             if (indexData < content.contentData.Count - 1)
             {
                 ContentData nextContext = content.contentData[indexData + 1];
@@ -164,12 +168,42 @@ namespace IndicesCollectionReader.Entity
                 }
                 sbRawText.Append(pageText.Substring(fromIndex, toIndex - fromIndex));
             }
-            Regex regex = new Regex(RegexTemplates.TableHeaderNumCodeKoef);
-            Match match = regex.Match(sbRawText.ToString());
-            if (match.Success)
+
+            Regex regex1 = new Regex(RegexTemplates.TableHeaderNumCodeKoefKStoimostiPererabotkiVsegoVTCHZPl);
+            Regex regex2 = new Regex(RegexTemplates.TableHeaderNumCodeKoefKStoimostiPererabotkiDopSekcii);
+            Regex regex3 = new Regex(RegexTemplates.TableHeaderNumCodeKoefEMMR);
+
+            Regex regex10 = new Regex(RegexTemplates.TableHeaderNumCodeKoef);
+
+            MatchCollection matches;
+
+            Match match1 = regex1.Match(sbRawText.ToString());
+            Match match2 = regex2.Match(sbRawText.ToString());
+            Match match3 = regex3.Match(sbRawText.ToString());
+
+            Match match10 = regex10.Match(sbRawText.ToString());
+
+            if (match1.Success)
             {
-                regex = new Regex(RegexTemplates.TableDataNumCodeKoef);
-                MatchCollection matches = regex.Matches(sbRawText.ToString());
+                tableHeader = "№П/П_ШИФР_КОЭФФИЦИЕНТЫ К СТОИМОСТИ ПЕРЕБАЗИРОВКИ_ВСЕГО_В ТОМ ЧИСЛЕ З/ПЛ";
+                Regex regex = new Regex(RegexTemplates.TableDataNumCodeKoefKStoimostiPererabotkiVsegoVTCHZPl);
+                matches = regex.Matches(sbRawText.ToString());
+                foreach (Match m in matches)
+                {
+                    RecordNumCode1_2Koef1Koef2 record = new RecordNumCode1_2Koef1Koef2();
+                    record.Number = m.Groups[1].Value.Trim();
+                    record.Code1 = m.Groups[2].Value.Trim();
+                    if (m.Groups.ContainsKey("3")) record.Code2 = m.Groups[3].Value.Trim();
+                    record.Koef1 = m.Groups[4].Value.Trim();
+                    record.Koef2 = m.Groups[5].Value.Trim();
+                    records.Add(record);
+                }
+            }
+            else if (match2.Success)
+            {
+                tableHeader = "№П/П_ШИФР_КОЭФФИЦИЕНТЫ К СТОИМОСТИ ДОПОЛНИТЕЛЬНОЙ ПЕРЕБАЗИРОВКИ ДОПОЛНИТЕЛЬНОЙ СЕКЦИИ";
+                Regex regex = new Regex(RegexTemplates.TableDataNumCodeKoef);
+                matches = regex.Matches(sbRawText.ToString());
                 foreach (Match m in matches)
                 {
                     RecordNumCodeKoef record = new RecordNumCodeKoef();
@@ -180,13 +214,54 @@ namespace IndicesCollectionReader.Entity
                     records.Add(record);
                 }
             }
+            else if (match3.Success)
+            {
+                tableHeader = "№П/П_ШИФР_КОЭФФИЦИЕНТЫ ЭМ и МР";
+                Regex regex = new Regex(RegexTemplates.TableDataNumCodeKoefEMMR);
+                matches = regex.Matches(sbRawText.ToString());
+                foreach (Match m in matches)
+                {
+                    RecordNumCode1_2Koef1Koef2 record = new RecordNumCode1_2Koef1Koef2();
+                    record.Number = m.Groups[1].Value.Trim();
+                    record.Code1 = m.Groups[2].Value.Trim();
+                    if (m.Groups.ContainsKey("3")) record.Code2 = m.Groups[3].Value.Trim();
+                    record.Koef1 = m.Groups[4].Value.Trim();
+                    record.Koef2 = m.Groups[6].Value.Trim();
+                    records.Add(record);
+                }
+            }
+            else if (match10.Success)
+            {
+                tableHeader = "№П/П_ШИФР_КОЭФФИЦИЕНТ";
+                Regex regex = new Regex(RegexTemplates.TableDataNumCodeKoef);
+                matches = regex.Matches(sbRawText.ToString());
+                foreach (Match m in matches)
+                {
+                    RecordNumCodeKoef record = new RecordNumCodeKoef();
+                    record.Number = m.Groups[1].Value.Trim();
+                    record.Code1 = m.Groups[2].Value.Trim();
+                    if (m.Groups.ContainsKey("3")) record.Code2 = m.Groups[3].Value.Trim();
+                    record.Koef = m.Groups[4].Value.Trim();
+                    records.Add(record);
+                }
+            }
+            else
+            {
+                Console.WriteLine(sbRawText.ToString());
+            }
+
             if(currentCompilation != null)
             {
-                currentCompilation.Records = records;
-            }else
+                currentCompilation.Name = context.Name;
+                currentCompilation.Page = context.Page;
+                currentCompilation.header = tableHeader;
+                currentCompilation.Records.AddRange( records );
+            }
+            else
             {
                 Table table = new Table();
                 table.Name = context.Name;
+                table.Header = tableHeader;
                 table.Page = context.Page;
                 table.Records = records;
                 currentSection.Tables.Add(table);

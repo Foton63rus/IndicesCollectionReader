@@ -12,7 +12,16 @@
         public static string CompilationNumber = @"^Сборник\s+(\d+)\s?.\s+";
         public static string TableNumberHeader = @"^\s?(\d+).\s+(.+)";
 
+        public static string TableHeaderNumCodeKoefKStoimostiPererabotkiVsegoVTCHZPl = @"№\s+п\/п\s+Шифр\s+Коэффициенты\s+к\s+стоимости\s+перебазировки\s+всего\s+в\s+т.ч.\s+з\/пл.";
+        public static string TableDataNumCodeKoefKStoimostiPererabotkiVsegoVTCHZPl = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?(\d+,\d+)\s+(\d+,\d+)\s*";
+
+        public static string TableHeaderNumCodeKoefKStoimostiPererabotkiDopSekcii = @"№\s+п\/п\s+Шифр\s+Коэффициенты\s+к\s+стоимости\s+перебазировки\s+дополнительной\s+секции\s+";
+        public static string TableDataNumCodeKoefKStoimostiPererabotkiDopSekcii = TableDataNumCodeKoef;
+
         public static string TableHeaderNumCodeKoef = @"№\s+п\/п\s+Шифр\s+Коэффи-\s+циент\s+";
         public static string TableDataNumCodeKoef = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?(\d+,\d+)\s*";
+
+        public static string TableHeaderNumCodeKoefEMMR = @"№\s+п\/п\s+Шифр\s+Коэффициент\s+ЭМ\s+МР\s+";
+        public static string TableDataNumCodeKoefEMMR = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?((\d+,\d+)|-)\s+((\d+,\d+)|-)\s+";
     }
 }
