@@ -18,6 +18,9 @@
         public static string TableHeaderNumCodeKoefKStoimostiPererabotkiDopSekcii = @"№\s+п\/п\s+Шифр\s+Коэффициенты\s+к\s+стоимости\s+перебазировки\s+дополнительной\s+секции\s+";
         public static string TableDataNumCodeKoefKStoimostiPererabotkiDopSekcii = TableDataNumCodeKoef;
 
+        public static string TableHeaderNumCodeCommonKoefZPEMMROther = @"№\s+п\/п\s+Шифр\s+Общий\s+коэффи-\s+циент\s+Коэффициенты\s+к\s+статьям\s+затрат\s+ЗП\s+ЭМ\s+МР\s+Прочие\s+затраты\s+";
+        public static string TableDataNumCodeKoefx5 = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?((\d+,\d+)|-)\s+((\d+,\d+)|-)\s+((\d+,\d+)|-)\s+((\d+,\d+)|-)\s+((\d+,\d+)|-)\s+";
+
         public static string TableHeaderNumCodeKoef = @"№\s+п\/п\s+Шифр\s+Коэффи-\s+циент\s+";
         public static string TableDataNumCodeKoef = @"(\d+)\s+(\d+.\d+-\d+-\d+)\s+(\d+.\d+-\d+-\d+\s+)?(\d+,\d+)\s*";
 

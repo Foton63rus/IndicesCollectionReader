@@ -2,6 +2,7 @@
 {
     public class ChapterWithSections : IChapter// Глава с разделами
     {
+        public string Name;
         public int Number;
         public int Page;
         public List<Section> Sections = new List<Section>();

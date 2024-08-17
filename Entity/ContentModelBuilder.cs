@@ -10,7 +10,7 @@ namespace IndicesCollectionReader.Entity
         PdfDocument pdf;
         ContentExtractor content;
         Indexes indexes = new Indexes();   // Объектная модель файла
-
+        string chapterName = "";
         (int, int) chapterCashData = (0, 0);
         ChapterWithCompilations currentChapterWithCompilations = null;
         ChapterWithSections currentChapterWithSections = null;
@@ -75,6 +75,7 @@ namespace IndicesCollectionReader.Entity
             if (match.Success)
             {
                 int.TryParse(match.Groups[1].Value, out number);
+                chapterName = context.Name;
             }
             int page = context.Page;
             chapterCashData = (number, page);
@@ -91,6 +92,7 @@ namespace IndicesCollectionReader.Entity
             {
                 currentChapterWithCompilations = null;
                 currentChapterWithSections = new ChapterWithSections(chapterCashData.Item1, chapterCashData.Item2);
+                currentChapterWithSections.Name = chapterName;
                 indexes.Chapters.Add(currentChapterWithSections);
                 chapterCashData = (0, 0);
             }
@@ -101,6 +103,7 @@ namespace IndicesCollectionReader.Entity
             if (match.Success)
             {
                 int.TryParse(match.Groups[1].Value, out currentSection.Number);
+                currentSection.Name = match.Value;
             }
             currentSection.Page = context.Page;
             currentChapterWithSections.Sections.Add(currentSection);
@@ -111,6 +114,7 @@ namespace IndicesCollectionReader.Entity
             {
                 currentChapterWithSections = null;
                 currentChapterWithCompilations = new ChapterWithCompilations(chapterCashData.Item1, chapterCashData.Item2);
+                currentChapterWithCompilations.Name = chapterName;
                 indexes.Chapters.Add(currentChapterWithCompilations);
                 chapterCashData = (0, 0);
             }
@@ -172,6 +176,7 @@ namespace IndicesCollectionReader.Entity
             Regex regex1 = new Regex(RegexTemplates.TableHeaderNumCodeKoefKStoimostiPererabotkiVsegoVTCHZPl);
             Regex regex2 = new Regex(RegexTemplates.TableHeaderNumCodeKoefKStoimostiPererabotkiDopSekcii);
             Regex regex3 = new Regex(RegexTemplates.TableHeaderNumCodeKoefEMMR);
+            Regex regex4 = new Regex(RegexTemplates.TableHeaderNumCodeCommonKoefZPEMMROther);
 
             Regex regex10 = new Regex(RegexTemplates.TableHeaderNumCodeKoef);
 
@@ -180,6 +185,7 @@ namespace IndicesCollectionReader.Entity
             Match match1 = regex1.Match(sbRawText.ToString());
             Match match2 = regex2.Match(sbRawText.ToString());
             Match match3 = regex3.Match(sbRawText.ToString());
+            Match match4 = regex4.Match(sbRawText.ToString());
 
             Match match10 = regex10.Match(sbRawText.ToString());
 
@@ -227,6 +233,25 @@ namespace IndicesCollectionReader.Entity
                     if (m.Groups.ContainsKey("3")) record.Code2 = m.Groups[3].Value.Trim();
                     record.Koef1 = m.Groups[4].Value.Trim();
                     record.Koef2 = m.Groups[6].Value.Trim();
+                    records.Add(record);
+                }
+            }
+            else if (match4.Success)
+            {
+                tableHeader = "№П/П_ШИФР_ОбщийКоэффициент_ЗП_ЭМ_МР_ПрочиеЗатраты";
+                Regex regex = new Regex(RegexTemplates.TableDataNumCodeKoefx5);
+                matches = regex.Matches(sbRawText.ToString());
+                foreach (Match m in matches)
+                {
+                    RecordNumCodeKoefx5 record = new RecordNumCodeKoefx5();
+                    record.Number = m.Groups[1].Value.Trim();
+                    record.Code1 = m.Groups[2].Value.Trim();
+                    if (m.Groups.ContainsKey("3")) record.Code2 = m.Groups[3].Value.Trim();
+                    record.Koef1 = m.Groups[4].Value.Trim();
+                    record.Koef2 = m.Groups[6].Value.Trim();
+                    record.Koef3 = m.Groups[8].Value.Trim();
+                    record.Koef4 = m.Groups[10].Value.Trim();
+                    record.Koef5 = m.Groups[12].Value.Trim();
                     records.Add(record);
                 }
             }
